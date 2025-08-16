@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Drag & Resize Sections</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #000000;
+    }
+
+    .section {
+      position: absolute;
+      top: 100px;
+      left: 100px;
+      width: 200px;
+      height: 150px;
+      background: #4a90e2;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 8px;
+      cursor: move;
+      user-select: none;
+    }
+
+    .resize-handle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: white;
+      border: 2px solid #333;
+      border-radius: 50%;
+      cursor: se-resize;
+      bottom: 0;
+      right: 0;
+    }
+  </style>
+</head>
+<body>
+    <div class="section" id="section">
+        Drag Me
+        <div class="resize-handle top-handle"></div>
+        <div class="resize-handle bottom-handle"></div>
+    </div>
+
+    <script>
+        const section = document.getElementById("section");
+        const topHandle = section.querySelector(".top-handle");
+        const bottomHandle = section.querySelector(".bottom-handle");
+
+        let isDragging = false;
+        let isResizingTop = false;
+        let isResizingBottom = false;
+        let offsetX, offsetY;
+        let initialTop, initialHeight;
+
+        // --- Dragging ---
+        section.addEventListener("mousedown", (e) => {
+            if (e.target === topHandle || e.target === bottomHandle) return;
+            isDragging = true;
+            offsetX = e.clientX - section.offsetLeft;
+            offsetY = e.clientY - section.offsetTop;
+        });
+
+        // --- Top Resizing ---
+        topHandle.addEventListener("mousedown", (e) => {
+            isResizingTop = true;
+            initialTop = section.offsetTop;
+            initialHeight = section.offsetHeight;
+            e.stopPropagation();
+        });
+
+        // --- Bottom Resizing ---
+        bottomHandle.addEventListener("mousedown", (e) => {
+            isResizingBottom = true;
+            e.stopPropagation();
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (isDragging) {
+                section.style.left = e.clientX - offsetX + "px";
+                section.style.top = e.clientY - offsetY + "px";
+            } else if (isResizingTop) {
+                const deltaY = e.clientY - initialTop;
+                const newHeight = initialHeight - deltaY;
+                if (newHeight > 20) {
+                    section.style.top = e.clientY + "px";
+                    section.style.height = newHeight + "px";
+                }
+            } else if (isResizingBottom) {
+                section.style.height = e.clientY - section.offsetTop + "px";
+            }
+        });
+
+        document.addEventListener("mouseup", () => {
+            isDragging = false;
+            isResizingTop = false;
+            isResizingBottom = false;
+        });
+    </script>
+
+    <style>
+        .top-handle {
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: n-resize;
+        }
+        
+        .bottom-handle {
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: s-resize;
+        }
+    </style>
+</body>
+</html>
