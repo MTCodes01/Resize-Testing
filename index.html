@@ -1,307 +1,881 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <title>Time Tracker with Ruler</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Time Tracker</title>
     <style>
-        body {
+        * {
             margin: 0;
-            width: auto;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #ffffff;
             height: 100vh;
-            background: #000000;
-            overflow: auto;
+            overflow: hidden;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 300;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover:before {
+            left: 100%;
+        }
+
+        .timeline-container {
+            display: flex;
+            height: calc(100vh - 80px);
             position: relative;
         }
 
         .time-ruler {
-            position: absolute;
-            top: 0;
-            left: 50px;
-            right: 0;
-            width: 100%;
-            height: 100vh;
-            background: #111;
-            border-left: 2px solid #333;
+            width: 100px;
+            background: rgba(255, 255, 255, 0.03);
+            border-right: 2px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            flex-shrink: 0;
+            z-index: 10;
         }
 
-        .time-slot {
+        .events-container {
+            flex: 1;
+            position: relative;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .timeline {
+            height: 1440px;
+            /* 24 hours * 60 minutes */
+            position: relative;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f1419 100%);
+        }
+
+        .hour-marker {
             position: absolute;
             left: 0;
-            right: 0;
-            width: 100%;
-            height: calc(100vh / 24);
-            border-bottom: 1px solid #333;
+            width: 100px;
+            height: 60px;
             display: flex;
             align-items: center;
-            padding-left: 10px;
-            color: #666;
+            justify-content: center;
             font-size: 12px;
-            font-family: monospace;
-        }
-
-        .time-slot:nth-child(even) {
+            color: rgba(255, 255, 255, 0.7);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             background: rgba(255, 255, 255, 0.02);
         }
 
-        .time-label {
-            position: absolute;
-            left: 5px;
-            width: 40px;
-            text-align: right;
-            color: #888;
-            font-size: 11px;
-            font-family: monospace;
-        }
-
-        .section {
+        .grid-line {
             position: absolute;
             left: 100px;
-            width: 200px;
+            right: 0;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.05);
+            pointer-events: none;
+        }
+
+        .quarter-line {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .event {
+            position: absolute;
+            left: 110px;
             min-height: 30px;
-            background: #4a90e2;
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 8px;
+            padding: 8px 12px;
             cursor: move;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+            z-index: 100;
+            width: 200px;
+            backdrop-filter: blur(10px);
             user-select: none;
-            z-index: 10;
-            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .event:hover {
+            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.4);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .event.dragging {
+            z-index: 1000;
+            transform: scale(1.05);
+            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.6);
+        }
+
+        .event-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .event-time {
+            font-size: 12px;
+            opacity: 0.9;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         }
 
         .resize-handle {
             position: absolute;
-            width: 90%;
-            height: 5px;
-            background: rgb(255, 255, 255);
-            border-radius: 5px;
-            z-index: 11;
-            left: 5%;
+            left: 0;
+            right: 0;
+            height: 8px;
+            cursor: ns-resize;
+            z-index: 101;
         }
-        
-        .top-handle {
-            top: -3.5px;
-            cursor: n-resize;
+
+        .resize-handle.top {
+            top: -4px;
         }
-        
-        .bottom-handle {
-            bottom: -3.5px;
-            cursor: s-resize;
+
+        .resize-handle.bottom {
+            bottom: -4px;
+        }
+
+        .resize-handle:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .tooltip {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 10000;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .context-menu {
+            position: fixed;
+            background: rgba(30, 30, 50, 0.95);
+            backdrop-filter: blur(15px);
+            border-radius: 12px;
+            padding: 8px;
+            z-index: 10001;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            min-width: 180px;
+        }
+
+        .context-menu button {
+            display: block;
+            width: 100%;
+            padding: 10px 12px;
+            border: none;
+            background: transparent;
+            color: white;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            margin-bottom: 2px;
+        }
+
+        .context-menu button:hover {
+            background: rgba(102, 126, 234, 0.3);
+            transform: translateX(4px);
+        }
+
+        .color-picker {
+            display: flex;
+            gap: 8px;
+            padding: 8px 12px;
+            flex-wrap: wrap;
+        }
+
+        .color-option {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .color-option:hover {
+            transform: scale(1.2);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10002;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: rgba(30, 30, 50, 0.95);
+            backdrop-filter: blur(15px);
+            padding: 30px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 16px 64px rgba(0, 0, 0, 0.7);
+            min-width: 300px;
+        }
+
+        .modal input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            border-radius: 8px;
+            font-size: 16px;
+            margin: 10px 0 20px 0;
+        }
+
+        .modal input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1);
+        }
+
+        /* Scrollbar styling */
+        .events-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .events-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .events-container::-webkit-scrollbar-thumb {
+            background: rgba(102, 126, 234, 0.5);
+            border-radius: 4px;
+        }
+
+        .events-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(102, 126, 234, 0.7);
+        }
+
+        /* Color themes */
+        .color-blue {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .color-green {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+        }
+
+        .color-red {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        }
+
+        .color-purple {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        }
+
+        .color-orange {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+        }
+
+        .color-teal {
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+        }
+
+        .hidden {
+            display: none !important;
         }
     </style>
 </head>
+
 <body>
-    <!-- Time Ruler Background -->
-    <div class="time-ruler" id="timeRuler">
-        <!-- Time slots will be generated by JavaScript -->
+    <div class="header">
+        <h1>Time Tracker</h1>
+        <div class="header-controls">
+            <button class="btn" onclick="exportSchedule()">Export</button>
+            <button class="btn" onclick="importSchedule()">Import</button>
+            <button class="btn" onclick="clearAllEvents()">Clear All</button>
+        </div>
     </div>
 
-    <div class="section" id="section" style="top: 200px;">
-        Task 1
-        <div class="resize-handle top-handle"></div>
-        <div class="resize-handle bottom-handle"></div>
+    <div class="timeline-container">
+        <div class="time-ruler" id="timeRuler"></div>
+        <div class="events-container" id="eventsContainer">
+            <div class="timeline" id="timeline"></div>
+        </div>
     </div>
+
+    <div class="tooltip hidden" id="tooltip"></div>
+
+    <div class="context-menu hidden" id="contextMenu">
+        <button onclick="editEventName()">Edit Name</button>
+        <div class="color-picker">
+            <div class="color-option color-blue" onclick="changeEventColor('color-blue')"></div>
+            <div class="color-option color-green" onclick="changeEventColor('color-green')"></div>
+            <div class="color-option color-red" onclick="changeEventColor('color-red')"></div>
+            <div class="color-option color-purple" onclick="changeEventColor('color-purple')"></div>
+            <div class="color-option color-orange" onclick="changeEventColor('color-orange')"></div>
+            <div class="color-option color-teal" onclick="changeEventColor('color-teal')"></div>
+        </div>
+        <button onclick="deleteEvent()">Delete Event</button>
+    </div>
+
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <h3>Edit Event</h3>
+            <input type="text" id="eventNameInput" placeholder="Event name">
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn" onclick="saveEventName()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="loadScheduleFile(event)">
 
     <script>
-        let sectionCounter = 1;
-        const HOUR_HEIGHT = window.innerHeight / 24;
-        const SNAP_THRESHOLD = 10;
-        const COLUMN_WIDTH = 220; // Width including margin
-        const MIN_LEFT = 100; // Starting position for first column
+        class TimeTracker {
+            constructor() {
+                this.events = [];
+                this.eventIdCounter = 1;
+                this.isDragging = false;
+                this.isResizing = false;
+                this.dragOffset = { x: 0, y: 0 };
+                this.currentEvent = null;
+                this.contextMenuEvent = null;
 
-        // Create time ruler
-        function createTimeRuler() {
-            const ruler = document.getElementById('timeRuler');
-            for (let hour = 0; hour < 24; hour++) {
-                const timeSlot = document.createElement('div');
-                timeSlot.className = 'time-slot';
-                timeSlot.style.top = (hour * HOUR_HEIGHT) + 'px';
-                timeSlot.style.height = HOUR_HEIGHT + 'px';
-                
-                const label = document.createElement('div');
-                label.className = 'time-label';
-                label.textContent = `${hour.toString().padStart(2, '0')}:00`;
-                label.style.top = (hour * HOUR_HEIGHT) + 'px';
-                
-                ruler.appendChild(timeSlot);
-                document.body.appendChild(label);
+                this.init();
             }
-        }
 
-        // Snap to nearest time slot
-        function snapToTimeSlot(yPosition) {
-            const hourIndex = Math.round(yPosition / HOUR_HEIGHT);
-            return Math.max(0, Math.min(hourIndex * HOUR_HEIGHT, (23 * HOUR_HEIGHT)));
-        }
+            init() {
+                this.setupTimeline();
+                this.setupEventListeners();
+            }
 
-        // Check if position overlaps with existing sections
-        function hasOverlap(columnIndex, top, height) {
-            const sections = document.querySelectorAll('.section');
-            const columnLeft = MIN_LEFT + (columnIndex * COLUMN_WIDTH);
-            
-            for (let section of sections) {
-                const sectionLeft = parseInt(section.style.left);
-                const sectionTop = parseInt(section.style.top);
-                const sectionHeight = parseInt(section.style.height);
-                
-                // Check if in same column
-                if (Math.abs(sectionLeft - columnLeft) < 10) {
-                    // Check vertical overlap
-                    if (!(top >= sectionTop + sectionHeight || top + height <= sectionTop)) {
-                        return true;
+            setupTimeline() {
+                const timeRuler = document.getElementById('timeRuler');
+                const timeline = document.getElementById('timeline');
+
+                // Create hour markers and grid lines
+                for (let hour = 0; hour < 24; hour++) {
+                    const hourMarker = document.createElement('div');
+                    hourMarker.className = 'hour-marker';
+                    hourMarker.style.top = `${hour * 60}px`;
+                    hourMarker.textContent = `${hour.toString().padStart(2, '0')}:00`;
+                    timeRuler.appendChild(hourMarker);
+
+                    // Main hour grid line
+                    const gridLine = document.createElement('div');
+                    gridLine.className = 'grid-line';
+                    gridLine.style.top = `${hour * 60}px`;
+                    timeline.appendChild(gridLine);
+
+                    // Quarter hour lines
+                    for (let quarter = 1; quarter < 4; quarter++) {
+                        const quarterLine = document.createElement('div');
+                        quarterLine.className = 'grid-line quarter-line';
+                        quarterLine.style.top = `${hour * 60 + quarter * 15}px`;
+                        timeline.appendChild(quarterLine);
                     }
                 }
             }
-            return false;
-        }
 
-        // Find available column for new section
-        function findAvailableColumn(top, height) {
-            let columnIndex = 0;
-            while (hasOverlap(columnIndex, top, height)) {
-                columnIndex++;
+            setupEventListeners() {
+                const timeline = document.getElementById('timeline');
+                const eventsContainer = document.getElementById('eventsContainer');
+
+                timeline.addEventListener('click', (e) => this.handleTimelineClick(e));
+                document.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                document.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+                document.addEventListener('contextmenu', (e) => {
+                    if (!e.target.closest('.event')) {
+                        this.hideContextMenu();
+                    }
+                });
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('.context-menu')) {
+                        this.hideContextMenu();
+                    }
+                });
+
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        this.hideContextMenu();
+                        this.closeModal();
+                    }
+                });
             }
-            return columnIndex;
-        }
 
-        function createSection(x, y) {
-            sectionCounter++;
-            const snappedTop = snapToTimeSlot(y);
-            const defaultHeight = HOUR_HEIGHT;
-            
-            // Find available column
-            const columnIndex = findAvailableColumn(snappedTop, defaultHeight);
-            const columnLeft = MIN_LEFT + (columnIndex * COLUMN_WIDTH);
-            
-            const newSection = document.createElement('div');
-            newSection.className = 'section';
-            newSection.id = `section${sectionCounter}`;
-            newSection.style.left = columnLeft + 'px';
-            newSection.style.top = snappedTop + 'px';
-            newSection.style.height = defaultHeight + 'px';
-            newSection.innerHTML = `
-                Task ${sectionCounter}
-                <div class="resize-handle top-handle"></div>
-                <div class="resize-handle bottom-handle"></div>
-            `;
-            document.body.appendChild(newSection);
-            attachEventListeners(newSection);
-        }
-
-        function attachEventListeners(section) {
-            const topHandle = section.querySelector(".top-handle");
-            const bottomHandle = section.querySelector(".bottom-handle");
-
-            let isDragging = false;
-            let isResizingTop = false;
-            let isResizingBottom = false;
-            let offsetY;
-            let initialTop, initialHeight, initialLeft;
-
-            // --- Dragging (vertical only with snapping) ---
-            section.addEventListener("mousedown", (e) => {
-                if (e.target === topHandle || e.target === bottomHandle) return;
-                isDragging = true;
-                offsetY = e.clientY - section.offsetTop;
-                initialLeft = section.offsetLeft;
-                e.stopPropagation();
-            });
-
-            // --- Top Resizing ---
-            topHandle.addEventListener("mousedown", (e) => {
-                isResizingTop = true;
-                initialTop = section.offsetTop;
-                initialHeight = section.offsetHeight;
-                e.stopPropagation();
-            });
-
-            // --- Bottom Resizing ---
-            bottomHandle.addEventListener("mousedown", (e) => {
-                isResizingBottom = true;
-                e.stopPropagation();
-            });
-
-            document.addEventListener("mousemove", (e) => {
-                if (isDragging) {
-                    const newTop = e.clientY - offsetY;
-                    section.style.top = Math.max(0, Math.min(newTop, window.innerHeight - section.offsetHeight)) + "px";
-                } else if (isResizingTop) {
-                    const deltaY = e.clientY - initialTop;
-                    const newHeight = initialHeight - deltaY;
-                    if (newHeight > 20) {
-                        const newTop = Math.max(0, e.clientY);
-                        section.style.top = newTop + "px";
-                        section.style.height = newHeight + "px";
-                    }
-                } else if (isResizingBottom) {
-                    const newHeight = Math.max(20, e.clientY - section.offsetTop);
-                    section.style.height = Math.min(newHeight, window.innerHeight - section.offsetTop) + "px";
-                }
-            });
-
-            document.addEventListener("mouseup", () => {
-                if (isDragging) {
-                    const snappedTop = snapToTimeSlot(section.offsetTop);
-                    
-                    // Find current column index
-                    const currentColumn = Math.round((initialLeft - MIN_LEFT) / COLUMN_WIDTH);
-                    
-                    // Check if new position creates overlap in current column
-                    section.style.top = snappedTop + 'px';
-                    if (hasOverlapExcludingSelf(section, currentColumn, snappedTop, section.offsetHeight)) {
-                        // Find new available column
-                        const newColumn = findAvailableColumn(snappedTop, section.offsetHeight);
-                        section.style.left = (MIN_LEFT + newColumn * COLUMN_WIDTH) + 'px';
-                    }
-                }
-                if (isResizingTop) {
-                    section.style.top = snapToTimeSlot(section.offsetTop) + "px";
-                }
-                if (isResizingBottom) {
-                    const currentBottom = section.offsetTop + section.offsetHeight;
-                    const snappedBottom = snapToTimeSlot(currentBottom) + HOUR_HEIGHT;
-                    section.style.height = Math.max(20, snappedBottom - section.offsetTop) + "px";
-                }
-                
-                isDragging = false;
-                isResizingTop = false;
-                isResizingBottom = false;
-            });
-        }
-
-        // Check overlap excluding the section being moved
-        function hasOverlapExcludingSelf(excludeSection, columnIndex, top, height) {
-            const sections = document.querySelectorAll('.section');
-            const columnLeft = MIN_LEFT + (columnIndex * COLUMN_WIDTH);
-            
-            for (let section of sections) {
-                if (section === excludeSection) continue;
-                
-                const sectionLeft = parseInt(section.style.left);
-                const sectionTop = parseInt(section.style.top);
-                const sectionHeight = parseInt(section.style.height);
-                
-                if (Math.abs(sectionLeft - columnLeft) < 10) {
-                    if (!(top >= sectionTop + sectionHeight || top + height <= sectionTop)) {
-                        return true;
-                    }
+            handleTimelineClick(e) {
+                if (e.target.id === 'timeline' && !this.isDragging) {
+                    const rect = e.target.getBoundingClientRect();
+                    const y = e.clientY - rect.top;
+                    const startTime = this.snapToQuarter(y);
+                    this.createEvent(startTime, startTime + 60, `Event ${this.eventIdCounter}`);
                 }
             }
-            return false;
+
+            createEvent(startTime, endTime, title, color = 'color-blue') {
+                const event = {
+                    id: this.eventIdCounter++,
+                    startTime,
+                    endTime,
+                    title,
+                    color,
+                    column: 0
+                };
+
+                this.events.push(event);
+                this.resolveOverlaps();
+                this.renderEvent(event);
+                return event;
+            }
+
+            renderEvent(event) {
+                const eventEl = document.createElement('div');
+                eventEl.className = `event ${event.color}`;
+                eventEl.dataset.eventId = event.id;
+                eventEl.style.top = `${event.startTime}px`;
+                eventEl.style.height = `${event.endTime - event.startTime}px`;
+                eventEl.style.left = `${110 + event.column * 210}px`;
+
+                eventEl.innerHTML = `
+                    <div class="resize-handle top"></div>
+                    <div class="event-title">${event.title}</div>
+                    <div class="event-time">${this.formatTime(event.startTime)} - ${this.formatTime(event.endTime)}</div>
+                    <div class="resize-handle bottom"></div>
+                `;
+
+                // Event listeners
+                eventEl.addEventListener('mousedown', (e) => this.handleEventMouseDown(e, event));
+                eventEl.addEventListener('contextmenu', (e) => this.handleEventContextMenu(e, event));
+
+                // Resize handles
+                const topHandle = eventEl.querySelector('.resize-handle.top');
+                const bottomHandle = eventEl.querySelector('.resize-handle.bottom');
+
+                topHandle.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                    this.startResize(e, event, 'top');
+                });
+
+                bottomHandle.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                    this.startResize(e, event, 'bottom');
+                });
+
+                document.getElementById('timeline').appendChild(eventEl);
+            }
+
+            handleEventMouseDown(e, event) {
+                if (e.target.classList.contains('resize-handle')) return;
+
+                this.isDragging = true;
+                this.currentEvent = event;
+
+                const eventEl = document.querySelector(`[data-event-id="${event.id}"]`);
+                eventEl.classList.add('dragging');
+
+                const rect = eventEl.getBoundingClientRect();
+                this.dragOffset.y = e.clientY - rect.top;
+
+                e.preventDefault();
+            }
+
+            handleEventContextMenu(e, event) {
+                e.preventDefault();
+                this.contextMenuEvent = event;
+                this.showContextMenu(e.pageX, e.pageY);
+            }
+
+            startResize(e, event, direction) {
+                this.isResizing = true;
+                this.currentEvent = event;
+                this.resizeDirection = direction;
+                this.resizeStartY = e.clientY;
+                this.resizeStartTime = direction === 'top' ? event.startTime : event.endTime;
+
+                e.preventDefault();
+            }
+
+            handleMouseMove(e) {
+                if (this.isDragging && this.currentEvent) {
+                    this.handleDrag(e);
+                } else if (this.isResizing && this.currentEvent) {
+                    this.handleResize(e);
+                }
+            }
+
+            handleDrag(e) {
+                const timeline = document.getElementById('timeline');
+                const rect = timeline.getBoundingClientRect();
+                const y = e.clientY - rect.top - this.dragOffset.y;
+
+                const newStartTime = this.snapToQuarter(y);
+                const duration = this.currentEvent.endTime - this.currentEvent.startTime;
+                const newEndTime = newStartTime + duration;
+
+                if (newStartTime >= 0 && newEndTime <= 1440) {
+                    this.currentEvent.startTime = newStartTime;
+                    this.currentEvent.endTime = newEndTime;
+
+                    this.resolveOverlaps();
+                    this.updateEventElement(this.currentEvent);
+                    this.showTooltip(e.pageX + 10, e.pageY - 10,
+                        `${this.formatTime(newStartTime)} - ${this.formatTime(newEndTime)}`);
+                }
+            }
+
+            handleResize(e) {
+                const deltaY = e.clientY - this.resizeStartY;
+                const deltaTime = this.snapToQuarter(deltaY);
+
+                if (this.resizeDirection === 'top') {
+                    const newStartTime = Math.max(0, this.resizeStartTime + deltaTime);
+                    if (newStartTime < this.currentEvent.endTime - 15) {
+                        this.currentEvent.startTime = newStartTime;
+                    }
+                } else {
+                    const newEndTime = Math.min(1440, this.resizeStartTime + deltaTime);
+                    if (newEndTime > this.currentEvent.startTime + 15) {
+                        this.currentEvent.endTime = newEndTime;
+                    }
+                }
+
+                this.resolveOverlaps();
+                this.updateEventElement(this.currentEvent);
+                this.showTooltip(e.pageX + 10, e.pageY - 10,
+                    `${this.formatTime(this.currentEvent.startTime)} - ${this.formatTime(this.currentEvent.endTime)}`);
+            }
+
+            handleMouseUp(e) {
+                if (this.isDragging) {
+                    const eventEl = document.querySelector(`[data-event-id="${this.currentEvent.id}"]`);
+                    eventEl.classList.remove('dragging');
+                }
+
+                this.isDragging = false;
+                this.isResizing = false;
+                this.currentEvent = null;
+                this.hideTooltip();
+            }
+
+            resolveOverlaps() {
+                // Reset all columns
+                this.events.forEach(event => event.column = 0);
+
+                // Sort events by start time
+                const sortedEvents = [...this.events].sort((a, b) => a.startTime - b.startTime);
+
+                for (let i = 0; i < sortedEvents.length; i++) {
+                    const currentEvent = sortedEvents[i];
+                    let column = 0;
+
+                    // Check for overlaps with previous events
+                    for (let j = 0; j < i; j++) {
+                        const prevEvent = sortedEvents[j];
+                        if (this.eventsOverlap(currentEvent, prevEvent) && prevEvent.column === column) {
+                            column++;
+                            j = -1; // Restart check with new column
+                        }
+                    }
+
+                    currentEvent.column = column;
+                }
+            }
+
+            eventsOverlap(event1, event2) {
+                return event1.startTime < event2.endTime && event1.endTime > event2.startTime;
+            }
+
+            updateEventElement(event) {
+                const eventEl = document.querySelector(`[data-event-id="${event.id}"]`);
+                if (eventEl) {
+                    eventEl.style.top = `${event.startTime}px`;
+                    eventEl.style.height = `${event.endTime - event.startTime}px`;
+                    eventEl.style.left = `${110 + event.column * 210}px`;
+
+                    const timeEl = eventEl.querySelector('.event-time');
+                    timeEl.textContent = `${this.formatTime(event.startTime)} - ${this.formatTime(event.endTime)}`;
+                }
+            }
+
+            updateAllEventElements() {
+                this.events.forEach(event => {
+                    this.updateEventElement(event);
+                });
+            }
+
+            snapToQuarter(value) {
+                return Math.round(value / 15) * 15;
+            }
+
+            formatTime(minutes) {
+                const hours = Math.floor(minutes / 60);
+                const mins = minutes % 60;
+                return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+            }
+
+            showTooltip(x, y, text) {
+                const tooltip = document.getElementById('tooltip');
+                tooltip.textContent = text;
+                tooltip.style.left = `${x}px`;
+                tooltip.style.top = `${y}px`;
+                tooltip.classList.remove('hidden');
+            }
+
+            hideTooltip() {
+                document.getElementById('tooltip').classList.add('hidden');
+            }
+
+            showContextMenu(x, y) {
+                const contextMenu = document.getElementById('contextMenu');
+                contextMenu.style.left = `${x}px`;
+                contextMenu.style.top = `${y}px`;
+                contextMenu.classList.remove('hidden');
+            }
+
+            hideContextMenu() {
+                document.getElementById('contextMenu').classList.add('hidden');
+            }
+
+            editEventName() {
+                if (this.contextMenuEvent) {
+                    document.getElementById('eventNameInput').value = this.contextMenuEvent.title;
+                    document.getElementById('editModal').style.display = 'flex';
+                    document.getElementById('eventNameInput').focus();
+                }
+                this.hideContextMenu();
+            }
+
+            changeEventColor(color) {
+                if (this.contextMenuEvent) {
+                    this.contextMenuEvent.color = color;
+                    const eventEl = document.querySelector(`[data-event-id="${this.contextMenuEvent.id}"]`);
+                    eventEl.className = `event ${color}`;
+                }
+                this.hideContextMenu();
+            }
+
+            deleteEvent() {
+                if (this.contextMenuEvent) {
+                    const eventEl = document.querySelector(`[data-event-id="${this.contextMenuEvent.id}"]`);
+                    eventEl.remove();
+
+                    this.events = this.events.filter(e => e.id !== this.contextMenuEvent.id);
+                    this.resolveOverlaps();
+                    this.updateAllEventElements();
+                }
+                this.hideContextMenu();
+            }
+
+            closeModal() {
+                document.getElementById('editModal').style.display = 'none';
+            }
+
+            saveEventName() {
+                const newName = document.getElementById('eventNameInput').value.trim();
+                if (newName && this.contextMenuEvent) {
+                    this.contextMenuEvent.title = newName;
+                    const eventEl = document.querySelector(`[data-event-id="${this.contextMenuEvent.id}"]`);
+                    eventEl.querySelector('.event-title').textContent = newName;
+                }
+                this.closeModal();
+            }
+
+            exportSchedule() {
+                const data = {
+                    events: this.events,
+                    exportDate: new Date().toISOString()
+                };
+
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `schedule-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            importSchedule() {
+                document.getElementById('fileInput').click();
+            }
+
+            loadScheduleFile(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        this.clearAllEvents();
+
+                        if (data.events && Array.isArray(data.events)) {
+                            data.events.forEach(eventData => {
+                                this.createEvent(
+                                    eventData.startTime,
+                                    eventData.endTime,
+                                    eventData.title,
+                                    eventData.color || 'color-blue'
+                                );
+                            });
+                        }
+                    } catch (error) {
+                        alert('Error loading schedule file. Please check the file format.');
+                    }
+                };
+                reader.readAsText(file);
+            }
+
+            clearAllEvents() {
+                this.events = [];
+                this.eventIdCounter = 1;
+                const timeline = document.getElementById('timeline');
+                const eventElements = timeline.querySelectorAll('.event');
+                eventElements.forEach(el => el.remove());
+            }
         }
 
-        // Create new section when clicking on time ruler
-        document.addEventListener("mousedown", (e) => {
-            if (e.target.classList.contains('time-slot') || e.target.classList.contains('time-ruler')) {
-                const rect = document.getElementById('timeRuler').getBoundingClientRect();
-                createSection(e.clientX - 100, e.clientY);
+        // Global functions for UI interactions
+        let timeTracker;
+
+        function editEventName() {
+            timeTracker.editEventName();
+        }
+
+        function changeEventColor(color) {
+            timeTracker.changeEventColor(color);
+        }
+
+        function deleteEvent() {
+            timeTracker.deleteEvent();
+        }
+
+        function closeModal() {
+            timeTracker.closeModal();
+        }
+
+        function saveEventName() {
+            timeTracker.saveEventName();
+        }
+
+        function exportSchedule() {
+            timeTracker.exportSchedule();
+        }
+
+        function importSchedule() {
+            timeTracker.importSchedule();
+        }
+
+        function loadScheduleFile(event) {
+            timeTracker.loadScheduleFile(event);
+        }
+
+        function clearAllEvents() {
+            if (confirm('Are you sure you want to clear all events?')) {
+                timeTracker.clearAllEvents();
             }
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            timeTracker = new TimeTracker();
+
+            // Add Enter key support for modal
+            document.getElementById('eventNameInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    saveEventName();
+                }
+            });
         });
-
-        // Initialize
-        createTimeRuler();
-        attachEventListeners(document.getElementById("section"));
     </script>
 </body>
+
 </html>
