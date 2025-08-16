@@ -1,111 +1,82 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Drag & Resize Sections</title>
-  <style>
-    body {
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: #000000;
-    }
-
-    .section {
-      position: absolute;
-      top: 100px;
-      left: 100px;
-      width: 200px;
-      height: 150px;
-      background: #4a90e2;
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      border-radius: 8px;
-      cursor: move;
-      user-select: none;
-    }
-
-    .resize-handle {
-      position: absolute;
-      width: 10px;
-      height: 10px;
-      background: white;
-      border: 2px solid #333;
-      border-radius: 50%;
-      cursor: se-resize;
-      bottom: 0;
-      right: 0;
-    }
-  </style>
-</head>
-<body>
-    <div class="section" id="section">
-        Drag Me
-        <div class="resize-handle top-handle"></div>
-        <div class="resize-handle bottom-handle"></div>
-    </div>
-
-    <script>
-        const section = document.getElementById("section");
-        const topHandle = section.querySelector(".top-handle");
-        const bottomHandle = section.querySelector(".bottom-handle");
-
-        let isDragging = false;
-        let isResizingTop = false;
-        let isResizingBottom = false;
-        let offsetX, offsetY;
-        let initialTop, initialHeight;
-
-        // --- Dragging ---
-        section.addEventListener("mousedown", (e) => {
-            if (e.target === topHandle || e.target === bottomHandle) return;
-            isDragging = true;
-            offsetX = e.clientX - section.offsetLeft;
-            offsetY = e.clientY - section.offsetTop;
-        });
-
-        // --- Top Resizing ---
-        topHandle.addEventListener("mousedown", (e) => {
-            isResizingTop = true;
-            initialTop = section.offsetTop;
-            initialHeight = section.offsetHeight;
-            e.stopPropagation();
-        });
-
-        // --- Bottom Resizing ---
-        bottomHandle.addEventListener("mousedown", (e) => {
-            isResizingBottom = true;
-            e.stopPropagation();
-        });
-
-        document.addEventListener("mousemove", (e) => {
-            if (isDragging) {
-                section.style.left = e.clientX - offsetX + "px";
-                section.style.top = e.clientY - offsetY + "px";
-            } else if (isResizingTop) {
-                const deltaY = e.clientY - initialTop;
-                const newHeight = initialHeight - deltaY;
-                if (newHeight > 20) {
-                    section.style.top = e.clientY + "px";
-                    section.style.height = newHeight + "px";
-                }
-            } else if (isResizingBottom) {
-                section.style.height = e.clientY - section.offsetTop + "px";
-            }
-        });
-
-        document.addEventListener("mouseup", () => {
-            isDragging = false;
-            isResizingTop = false;
-            isResizingBottom = false;
-        });
-    </script>
-
+    <meta charset="UTF-8">
+    <title>Time Tracker with Ruler</title>
     <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            background: #000000;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .time-ruler {
+            position: absolute;
+            top: 0;
+            left: 50px;
+            right: 0;
+            height: 100vh;
+            background: #111;
+            border-left: 2px solid #333;
+        }
+
+        .time-slot {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: calc(100vh / 24);
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            padding-left: 10px;
+            color: #666;
+            font-size: 12px;
+            font-family: monospace;
+        }
+
+        .time-slot:nth-child(even) {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .time-label {
+            position: absolute;
+            left: 5px;
+            width: 40px;
+            text-align: right;
+            color: #888;
+            font-size: 11px;
+            font-family: monospace;
+        }
+
+        .section {
+            position: absolute;
+            left: 100px;
+            width: 200px;
+            min-height: 30px;
+            background: #4a90e2;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            cursor: move;
+            user-select: none;
+            z-index: 10;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .resize-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 50%;
+            z-index: 11;
+        }
+
         .top-handle {
             top: -5px;
             left: 50%;
@@ -120,5 +91,149 @@
             cursor: s-resize;
         }
     </style>
+</head>
+<body>
+        <!-- Time Ruler Background -->
+        <div class="time-ruler" id="timeRuler">
+                <!-- Time slots will be generated by JavaScript -->
+        </div>
+
+        <div class="section" id="section" style="top: 200px;">
+                Task 1
+                <div class="resize-handle top-handle"></div>
+                <div class="resize-handle bottom-handle"></div>
+        </div>
+
+        <script>
+                let sectionCounter = 1;
+                const HOUR_HEIGHT = window.innerHeight / 24;
+                const SNAP_THRESHOLD = 10;
+
+                // Create time ruler
+                function createTimeRuler() {
+                        const ruler = document.getElementById('timeRuler');
+                        for (let hour = 0; hour < 24; hour++) {
+                                const timeSlot = document.createElement('div');
+                                timeSlot.className = 'time-slot';
+                                timeSlot.style.top = (hour * HOUR_HEIGHT) + 'px';
+                                timeSlot.style.height = HOUR_HEIGHT + 'px';
+                                
+                                const label = document.createElement('div');
+                                label.className = 'time-label';
+                                label.textContent = `${hour.toString().padStart(2, '0')}:00`;
+                                label.style.top = (hour * HOUR_HEIGHT) + 'px';
+                                
+                                ruler.appendChild(timeSlot);
+                                document.body.appendChild(label);
+                        }
+                }
+
+                // Snap to nearest time slot
+                function snapToTimeSlot(yPosition) {
+                        const hourIndex = Math.round(yPosition / HOUR_HEIGHT);
+                        return Math.max(0, Math.min(hourIndex * HOUR_HEIGHT, (23 * HOUR_HEIGHT)));
+                }
+
+                function createSection(x, y) {
+                        sectionCounter++;
+                        const newSection = document.createElement('div');
+                        newSection.className = 'section';
+                        newSection.id = `section${sectionCounter}`;
+                        newSection.style.left = Math.max(100, x) + 'px';
+                        newSection.style.top = snapToTimeSlot(y) + 'px';
+                        newSection.style.height = HOUR_HEIGHT + 'px';
+                        newSection.innerHTML = `
+                                Task ${sectionCounter}
+                                <div class="resize-handle top-handle"></div>
+                                <div class="resize-handle bottom-handle"></div>
+                        `;
+                        document.body.appendChild(newSection);
+                        attachEventListeners(newSection);
+                }
+
+                function attachEventListeners(section) {
+                        const topHandle = section.querySelector(".top-handle");
+                        const bottomHandle = section.querySelector(".bottom-handle");
+
+                        let isDragging = false;
+                        let isResizingTop = false;
+                        let isResizingBottom = false;
+                        let offsetY;
+                        let initialTop, initialHeight;
+
+                        // --- Dragging (vertical only with snapping) ---
+                        section.addEventListener("mousedown", (e) => {
+                                if (e.target === topHandle || e.target === bottomHandle) return;
+                                isDragging = true;
+                                offsetY = e.clientY - section.offsetTop;
+                                e.stopPropagation();
+                        });
+
+                        // --- Top Resizing ---
+                        topHandle.addEventListener("mousedown", (e) => {
+                                isResizingTop = true;
+                                initialTop = section.offsetTop;
+                                initialHeight = section.offsetHeight;
+                                e.stopPropagation();
+                        });
+
+                        // --- Bottom Resizing ---
+                        bottomHandle.addEventListener("mousedown", (e) => {
+                                isResizingBottom = true;
+                                e.stopPropagation();
+                        });
+
+                        document.addEventListener("mousemove", (e) => {
+                                if (isDragging) {
+                                        const newTop = e.clientY - offsetY;
+                                        section.style.top = Math.max(0, Math.min(newTop, window.innerHeight - section.offsetHeight)) + "px";
+                                } else if (isResizingTop) {
+                                        const deltaY = e.clientY - initialTop;
+                                        const newHeight = initialHeight - deltaY;
+                                        if (newHeight > 20) {
+                                                const newTop = Math.max(0, e.clientY);
+                                                section.style.top = newTop + "px";
+                                                section.style.height = newHeight + "px";
+                                        }
+                                } else if (isResizingBottom) {
+                                        const newHeight = Math.max(20, e.clientY - section.offsetTop);
+                                        section.style.height = Math.min(newHeight, window.innerHeight - section.offsetTop) + "px";
+                                }
+                        });
+
+                        document.addEventListener("mouseup", () => {
+                                if (isDragging) {
+                                        // Snap to nearest time slot when dragging ends
+                                        section.style.top = snapToTimeSlot(section.offsetTop) + "px";
+                                }
+                                if (isResizingTop) {
+                                        // Snap top edge to time slot
+                                        section.style.top = snapToTimeSlot(section.offsetTop) + "px";
+                                }
+                                if (isResizingBottom) {
+                                        // Snap height to time slot boundaries
+                                        const currentBottom = section.offsetTop + section.offsetHeight;
+                                        const snappedBottom = snapToTimeSlot(currentBottom) + HOUR_HEIGHT;
+                                        section.style.height = Math.max(20, snappedBottom - section.offsetTop) + "px";
+                                }
+                                
+                                isDragging = false;
+                                isResizingTop = false;
+                                isResizingBottom = false;
+                        });
+                }
+
+                // Create new section when clicking on time ruler
+                document.addEventListener("mousedown", (e) => {
+                        if (e.target.classList.contains('time-slot') || e.target.classList.contains('time-ruler')) {
+                                const rect = document.getElementById('timeRuler').getBoundingClientRect();
+                                createSection(e.clientX - 100, e.clientY);
+                        }
+                });
+
+                // Initialize
+                createTimeRuler();
+                attachEventListeners(document.getElementById("section"));
+        </script>
 </body>
 </html>
